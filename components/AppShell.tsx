@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Activity, BarChart3, BookOpen, CalendarCheck, HeartPulse, PiggyBank, Settings, UserRound } from "lucide-react";
+﻿import Link from "next/link";
+import { Activity, BarChart3, BookOpen, CalendarCheck, HeartPulse, PiggyBank, Settings, ShieldCheck, UserRound } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
@@ -9,6 +9,7 @@ const navItems = [
   { href: "/finances", label: "Finances", icon: PiggyBank },
   { href: "/reports", label: "Reports", icon: Activity },
   { href: "/auth", label: "Auth", icon: UserRound },
+  { href: "/privacy", label: "Privacy", icon: ShieldCheck },
   { href: "/settings", label: "Settings", icon: Settings }
 ];
 
@@ -50,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
         <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {navItems.slice(0, 6).map((item) => (
+          {navItems.map((item) => (
             <Link key={item.href} href={item.href} className="whitespace-nowrap rounded-md bg-mint px-3 py-1.5 text-xs font-semibold text-ink">
               {item.label}
             </Link>
@@ -61,3 +62,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+
+
