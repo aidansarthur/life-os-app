@@ -1,3 +1,4 @@
+﻿import Link from "next/link";
 import { KeyRound, Link2, ShieldCheck } from "lucide-react";
 import { SectionHeader } from "@/components/SectionHeader";
 
@@ -12,15 +13,13 @@ export default function SettingsPage() {
             <h2 className="text-lg font-bold">WHOOP integration</h2>
           </div>
           <div className="space-y-4">
-            <label className="block text-sm font-semibold text-ink/70">
-              Client ID
-              <input className="focus-ring mt-1 w-full rounded-md border border-ink/15 bg-white px-3 py-2" placeholder="Add later" />
-            </label>
-            <label className="block text-sm font-semibold text-ink/70">
-              Client secret
-              <input className="focus-ring mt-1 w-full rounded-md border border-ink/15 bg-white px-3 py-2" placeholder="Add later" type="password" />
-            </label>
-            <button className="focus-ring rounded-md bg-ink px-4 py-2 text-sm font-bold text-white">Save placeholder credentials</button>
+            <p className="leading-7 text-ink/70">
+              Connect WHOOP to authorize recovery, sleep, cycle, workout, and profile data for your personal dashboards and reports.
+            </p>
+            <Link href="/api/whoop/connect" className="focus-ring inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-bold text-white">
+              <Link2 className="size-4" />
+              Connect WHOOP
+            </Link>
           </div>
         </section>
         <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
@@ -40,3 +39,4 @@ export default function SettingsPage() {
     </>
   );
 }
+

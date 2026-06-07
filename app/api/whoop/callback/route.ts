@@ -14,10 +14,16 @@ export function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/settings?whoop=missing_code", origin));
   }
 
-  // TODO: Validate the OAuth state value before trusting the authorization code.
+  const expectedState = request.cookies.get("whoop_oauth_state")?.value;
+  if (!state || !expectedState || state !== expectedState) {
+    return NextResponse.redirect(new URL("/settings?whoop=invalid_state", origin));
+  }
+
   // TODO: Exchange the WHOOP authorization code for access and refresh tokens.
   // TODO: Store encrypted tokens for the signed-in user and schedule metric syncing.
-  void state;
 
-  return NextResponse.redirect(new URL("/settings?whoop=connected", origin));
+  const response = NextResponse.redirect(new URL("/settings?whoop=connected", origin));
+  response.cookies.delete("whoop_oauth_state");
+
+  return response;
 }
