@@ -8,7 +8,8 @@ const WHOOP_SCOPES = [
   "read:sleep",
   "read:cycles",
   "read:workout",
-  "read:profile"
+  "read:profile",
+  "offline"
 ].join(" ");
 
 export function GET() {
@@ -40,3 +41,4 @@ export function GET() {
 
   return response;
 }
+
