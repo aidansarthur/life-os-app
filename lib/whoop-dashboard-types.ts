@@ -1,10 +1,16 @@
-﻿export type WhoopDashboardData = {
+﻿export type WhoopRecoveryTrendPoint = {
+  date: string;
+  recoveryScore: number;
+};
+
+export type WhoopDashboardData = {
   recoveryScore: number | null;
   hrv: number | null;
   restingHeartRate: number | null;
   sleepPerformance: number | null;
   hoursSlept: number | null;
   sleepEfficiency: number | null;
+  recoveryTrend: WhoopRecoveryTrendPoint[];
 };
 
 export type WhoopDashboardResponse =
