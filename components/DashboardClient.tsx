@@ -5,16 +5,35 @@ import { MiniBarChart } from "@/components/MiniBarChart";
 import { ProgressBar } from "@/components/ProgressBar";
 import { ReportCard } from "@/components/ReportCard";
 import { StatCard } from "@/components/StatCard";
+import { WhoopDashboardWidget } from "@/components/WhoopDashboardWidget";
+import { useWhoopDashboard } from "@/components/useWhoopDashboard";
 import { averageProgress, financeSummary, habitCompletion, latestMetric } from "@/lib/calculations";
 import { generateDailyReport } from "@/lib/report";
 import { initialHabits, initialSchoolGoals, initialTransactions, today, whoopMetrics } from "@/lib/mock-data";
 import { useLocalStorageState } from "@/lib/use-local-storage";
 
+function formatPercent(value: number | null) {
+  return value === null ? "--" : `${Math.round(value)}%`;
+}
+
+function formatHours(value: number | null) {
+  return value === null ? "--" : `${value.toFixed(1)}h`;
+}
+
+function formatHrv(value: number | null) {
+  return value === null ? "--" : `${Math.round(value)} ms HRV`;
+}
+
 export function DashboardClient() {
   const [habits] = useLocalStorageState("life-os-habits", initialHabits);
   const [goals] = useLocalStorageState("life-os-school-goals", initialSchoolGoals);
   const [transactions] = useLocalStorageState("life-os-transactions", initialTransactions);
+  const whoopState = useWhoopDashboard();
   const metric = latestMetric(whoopMetrics);
+  const sleepRecoveryValue = whoopState.status === "connected" ? formatPercent(whoopState.metrics.recoveryScore) : `${metric.recoveryScore}%`;
+  const sleepRecoveryDetail = whoopState.status === "connected"
+    ? `${formatHours(whoopState.metrics.hoursSlept)} sleep, ${formatHrv(whoopState.metrics.hrv)}`
+    : `${metric.sleepHours}h sleep, ${metric.hrv} ms HRV`;
   const habitScore = habitCompletion(habits, today);
   const school = averageProgress(goals);
   const finances = financeSummary(transactions);
@@ -29,7 +48,7 @@ export function DashboardClient() {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Sleep / recovery" value={`${metric.recoveryScore}%`} detail={`${metric.sleepHours}h sleep, ${metric.hrv} ms HRV`} icon={HeartPulse} />
+        <StatCard label="Sleep / recovery" value={sleepRecoveryValue} detail={sleepRecoveryDetail} icon={HeartPulse} />
         <StatCard label="Habit completion" value={`${habitScore}%`} detail={`${habits.filter((habit) => habit.completions.includes(today)).length} of ${habits.length} daily habits complete`} icon={CalendarCheck} tone="sky" />
         <StatCard label="School progress" value={`${school}%`} detail="Average progress across goals" icon={BookOpen} tone="gold" />
         <StatCard label="Monthly balance" value={`$${finances.balance}`} detail={`$${finances.savings} saved this month`} icon={PiggyBank} tone="clay" />
@@ -53,6 +72,10 @@ export function DashboardClient() {
 
       <div className="mt-6">
         <ReportCard title="Snapshot" body={`${report.health} ${report.habits} ${report.school}`} />
+      </div>
+
+      <div className="mt-6">
+        <WhoopDashboardWidget state={whoopState} />
       </div>
     </>
   );

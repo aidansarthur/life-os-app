@@ -1,27 +1,8 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeartPulse, Link2 } from "lucide-react";
-
-type WhoopDashboardData = {
-  recoveryScore: number | null;
-  hrv: number | null;
-  restingHeartRate: number | null;
-  sleepPerformance: number | null;
-  hoursSlept: number | null;
-  sleepEfficiency: number | null;
-};
-
-type WhoopDashboardResponse =
-  | { ok: true; metrics: WhoopDashboardData }
-  | { ok: false; error: "not_connected" | "unauthorized" | "whoop_request_failed" };
-
-type WidgetState =
-  | { status: "loading" }
-  | { status: "not_connected" }
-  | { status: "error" }
-  | { status: "connected"; metrics: WhoopDashboardData };
+import type { WhoopDashboardState } from "@/lib/whoop-dashboard-types";
 
 function formatPercent(value: number | null) {
   return value === null ? "--" : `${Math.round(value)}%`;
@@ -56,40 +37,7 @@ function WidgetShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function WhoopDashboardWidget() {
-  const [state, setState] = useState<WidgetState>({ status: "loading" });
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadWhoopDashboard() {
-      try {
-        const response = await fetch("/api/whoop/dashboard", { cache: "no-store" });
-        const body = (await response.json()) as WhoopDashboardResponse;
-
-        if (!isMounted) return;
-
-        if (body.ok) {
-          setState({ status: "connected", metrics: body.metrics });
-        } else if (body.error === "not_connected") {
-          setState({ status: "not_connected" });
-        } else {
-          setState({ status: "error" });
-        }
-      } catch {
-        if (isMounted) {
-          setState({ status: "error" });
-        }
-      }
-    }
-
-    loadWhoopDashboard();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
+export function WhoopDashboardWidget({ state }: { state: WhoopDashboardState }) {
   if (state.status === "loading") {
     return (
       <WidgetShell>
