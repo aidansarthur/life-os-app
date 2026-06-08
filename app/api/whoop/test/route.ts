@@ -1,10 +1,16 @@
-﻿import { NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/auth";
 import { getWhoopTokens } from "@/lib/whoop-token-store";
 
 const WHOOP_PROFILE_URL = "https://api.prod.whoop.com/developer/v2/user/profile/basic";
 
-export async function GET() {
-  const tokens = await getWhoopTokens();
+export async function GET(request: NextRequest) {
+  const user = await getUserFromRequest(request);
+  if (!user) {
+    return NextResponse.json({ ok: false, error: "not_connected" }, { status: 401 });
+  }
+
+  const tokens = await getWhoopTokens(user.id);
 
   if (!tokens?.accessToken) {
     return NextResponse.json({ ok: false, error: "not_connected" });
@@ -33,4 +39,5 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "whoop_request_failed" }, { status: 502 });
   }
 }
+
 

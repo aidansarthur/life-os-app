@@ -1,4 +1,5 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/auth";
 import { saveWhoopTokens } from "@/lib/whoop-token-store";
 
 const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
@@ -28,6 +29,11 @@ export async function GET(request: NextRequest) {
   const expectedState = request.cookies.get("whoop_oauth_state")?.value;
   if (!state || !expectedState || state !== expectedState) {
     return NextResponse.redirect(new URL("/settings?whoop=invalid_state", origin));
+  }
+
+  const user = await getUserFromRequest(request);
+  if (!user) {
+    return NextResponse.redirect(new URL("/auth", origin));
   }
 
   const clientId = process.env.WHOOP_CLIENT_ID;
@@ -63,7 +69,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/settings?whoop=token_error", origin));
     }
 
-    await saveWhoopTokens({
+    await saveWhoopTokens(user.id, {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresIn: tokens.expires_in,
@@ -83,4 +89,5 @@ export async function GET(request: NextRequest) {
 
   return response;
 }
+
 

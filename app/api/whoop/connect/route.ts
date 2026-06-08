@@ -1,5 +1,6 @@
 ﻿import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/auth";
 
 const WHOOP_AUTHORIZE_URL = "https://api.prod.whoop.com/oauth/oauth2/auth";
 const WHOOP_REDIRECT_URI = "https://life-os-app-lime.vercel.app/api/whoop/callback";
@@ -12,7 +13,12 @@ const WHOOP_SCOPES = [
   "offline"
 ].join(" ");
 
-export function GET() {
+export async function GET(request: NextRequest) {
+  const user = await getUserFromRequest(request);
+  if (!user) {
+    return NextResponse.redirect("https://life-os-app-lime.vercel.app/auth");
+  }
+
   const clientId = process.env.WHOOP_CLIENT_ID;
 
   if (!clientId) {
@@ -41,4 +47,5 @@ export function GET() {
 
   return response;
 }
+
 

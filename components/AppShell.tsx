@@ -1,4 +1,5 @@
 ﻿import Link from "next/link";
+import { LogoutButton } from "@/components/LogoutButton";
 import { Activity, BarChart3, BookOpen, CalendarCheck, HeartPulse, PiggyBank, Settings, ShieldCheck, UserRound } from "lucide-react";
 
 const navItems = [
@@ -39,6 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        <LogoutButton />
       </aside>
       <header className="sticky top-0 z-10 border-b border-ink/10 bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between">
@@ -46,9 +48,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="grid size-8 place-items-center rounded-md bg-ink text-xs text-white">LO</span>
             Life OS
           </Link>
-          <Link href="/settings" aria-label="Settings" className="focus-ring rounded-md p-2 text-ink/70">
-            <Settings className="size-5" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href="/settings" aria-label="Settings" className="focus-ring rounded-md p-2 text-ink/70">
+              <Settings className="size-5" />
+            </Link>
+            <LogoutButton compact />
+          </div>
         </div>
         <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {navItems.map((item) => (
@@ -62,6 +67,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-
-

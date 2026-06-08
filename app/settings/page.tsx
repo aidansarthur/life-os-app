@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { CheckCircle2, KeyRound, Link2, ShieldCheck } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
 import { SectionHeader } from "@/components/SectionHeader";
 import { getWhoopTokens } from "@/lib/whoop-token-store";
 
@@ -18,8 +19,9 @@ const whoopMessages: Record<string, string> = {
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const params = await searchParams;
+  const user = await getCurrentUser();
   const whoopStatus = params?.whoop;
-  const storedTokens = await getWhoopTokens();
+  const storedTokens = user ? await getWhoopTokens(user.id) : null;
   const isWhoopConnected = whoopStatus === "connected" || Boolean(storedTokens);
   const whoopMessage = whoopStatus ? whoopMessages[whoopStatus] : null;
 
@@ -71,4 +73,5 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     </>
   );
 }
+
 

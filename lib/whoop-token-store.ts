@@ -18,16 +18,15 @@ type WhoopTokenRow = {
 };
 
 const tokenStore = new Map<string, WhoopTokenRecord>();
-const TEMPORARY_SINGLE_USER_ID = "temporary-version-1-user";
 
-function saveMemoryFallback(tokens: WhoopTokenRecord) {
+function saveMemoryFallback(ownerId: string, tokens: WhoopTokenRecord) {
   // TODO: Remove this fallback once Supabase auth and durable token storage are required.
   // Serverless deployments may clear this Map between invocations.
-  tokenStore.set(TEMPORARY_SINGLE_USER_ID, tokens);
+  tokenStore.set(ownerId, tokens);
 }
 
-export async function saveWhoopTokens(tokens: WhoopTokenRecord) {
-  saveMemoryFallback(tokens);
+export async function saveWhoopTokens(ownerId: string, tokens: WhoopTokenRecord) {
+  saveMemoryFallback(ownerId, tokens);
 
   const supabase = getSupabaseAdminClient();
   if (!supabase) {
@@ -35,7 +34,7 @@ export async function saveWhoopTokens(tokens: WhoopTokenRecord) {
   }
 
   const { error } = await supabase.from("whoop_tokens").upsert({
-    owner_id: TEMPORARY_SINGLE_USER_ID,
+    owner_id: ownerId,
     access_token: tokens.accessToken,
     refresh_token: tokens.refreshToken ?? null,
     expires_at: tokens.expiresAt,
@@ -49,8 +48,8 @@ export async function saveWhoopTokens(tokens: WhoopTokenRecord) {
   return { persisted: true as const };
 }
 
-export async function getWhoopTokens() {
-  const memoryTokens = tokenStore.get(TEMPORARY_SINGLE_USER_ID) ?? null;
+export async function getWhoopTokens(ownerId: string) {
+  const memoryTokens = tokenStore.get(ownerId) ?? null;
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
@@ -60,7 +59,7 @@ export async function getWhoopTokens() {
   const { data, error } = await supabase
     .from("whoop_tokens")
     .select("access_token, refresh_token, expires_at, token_type, updated_at")
-    .eq("owner_id", TEMPORARY_SINGLE_USER_ID)
+    .eq("owner_id", ownerId)
     .maybeSingle<WhoopTokenRow>();
 
   if (error || !data) {
