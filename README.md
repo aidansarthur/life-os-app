@@ -1,4 +1,4 @@
-# Life OS
+﻿# Life OS
 
 Version 1 of a personal Life OS web app for tracking health, sleep, habits, school, finances, and daily reflection.
 
@@ -113,3 +113,21 @@ lib/
 - Persist habits, goals, tasks, and transactions to Supabase.
 - Add WHOOP OAuth and sync jobs.
 - Replace rule-based reports with OpenAI-generated reports after user consent and data permissions are defined.
+## WHOOP Token Storage Setup
+
+Run this SQL file in the Supabase SQL editor:
+
+```text
+lib/whoop-tokens-schema.sql
+```
+
+The table is `public.whoop_tokens`. It keeps RLS enabled and intentionally creates no public read/write policies because WHOOP tokens are sensitive.
+
+For durable token storage in Vercel, add this server-only environment variable:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` private. Do not expose it in client code. If it is missing, the app falls back to temporary in-memory token storage for Version 1.
+

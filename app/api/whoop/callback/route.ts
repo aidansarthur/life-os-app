@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/settings?whoop=token_error", origin));
     }
 
-    saveWhoopTokens({
+    await saveWhoopTokens({
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresIn: tokens.expires_in,
@@ -83,3 +83,4 @@ export async function GET(request: NextRequest) {
 
   return response;
 }
+

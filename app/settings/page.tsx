@@ -19,7 +19,7 @@ const whoopMessages: Record<string, string> = {
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const params = await searchParams;
   const whoopStatus = params?.whoop;
-  const storedTokens = getWhoopTokens();
+  const storedTokens = await getWhoopTokens();
   const isWhoopConnected = whoopStatus === "connected" || Boolean(storedTokens);
   const whoopMessage = whoopStatus ? whoopMessages[whoopStatus] : null;
 
@@ -71,3 +71,4 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     </>
   );
 }
+

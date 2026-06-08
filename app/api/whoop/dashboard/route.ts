@@ -62,7 +62,7 @@ async function fetchWhoopCollection(path: string, authorization: string) {
 }
 
 export async function GET() {
-  const tokens = getWhoopTokens();
+  const tokens = await getWhoopTokens();
 
   if (!tokens?.accessToken) {
     return NextResponse.json({ ok: false, error: "not_connected" });
@@ -98,3 +98,4 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "whoop_request_failed" }, { status: 502 });
   }
 }
+

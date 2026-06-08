@@ -4,7 +4,7 @@ import { getWhoopTokens } from "@/lib/whoop-token-store";
 const WHOOP_PROFILE_URL = "https://api.prod.whoop.com/developer/v2/user/profile/basic";
 
 export async function GET() {
-  const tokens = getWhoopTokens();
+  const tokens = await getWhoopTokens();
 
   if (!tokens?.accessToken) {
     return NextResponse.json({ ok: false, error: "not_connected" });
@@ -33,3 +33,4 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "whoop_request_failed" }, { status: 502 });
   }
 }
+
