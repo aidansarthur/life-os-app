@@ -131,3 +131,21 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 Keep `SUPABASE_SERVICE_ROLE_KEY` private. Do not expose it in client code. If it is missing, the app falls back to temporary in-memory token storage for Version 1.
 
+
+## Habit Storage Setup
+
+Run this SQL file in the Supabase SQL editor:
+
+```text
+lib/habits-schema.sql
+```
+
+It creates `public.habits` and `public.habit_completions` for persistent per-user habit tracking. The app reads and writes these tables through authenticated server routes, using the logged-in Supabase user id for `user_id`.
+
+Required server environment variable:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` private. The habits tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.
