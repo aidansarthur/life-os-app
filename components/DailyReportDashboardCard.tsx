@@ -17,9 +17,9 @@ export function DailyReportDashboardCard() {
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
         <div className="mb-3 flex items-center gap-2">
           <Brain className="size-5 text-moss" />
-          <h2 className="text-lg font-bold">Today's Report</h2>
+          <h2 className="text-lg font-bold">Today&apos;s Report</h2>
         </div>
-        <p className="text-sm font-semibold text-ink/60">Generating today's report...</p>
+        <p className="text-sm font-semibold text-ink/60">Generating today&apos;s report...</p>
       </section>
     );
   }
@@ -29,9 +29,9 @@ export function DailyReportDashboardCard() {
       <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
         <div className="mb-3 flex items-center gap-2">
           <Brain className="size-5 text-moss" />
-          <h2 className="text-lg font-bold">Today's Report</h2>
+          <h2 className="text-lg font-bold">Today&apos;s Report</h2>
         </div>
-        <p className="rounded-md bg-clay/10 p-3 text-sm font-semibold text-clay">Unable to load today's report{error ? `: ${error}` : ""}.</p>
+        <p className="rounded-md bg-clay/10 p-3 text-sm font-semibold text-clay">Unable to load today&apos;s report{error ? `: ${error}` : ""}.</p>
       </section>
     );
   }
@@ -41,7 +41,7 @@ export function DailyReportDashboardCard() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Brain className="size-5 text-moss" />
-          <h2 className="text-lg font-bold">Today's Report</h2>
+          <h2 className="text-lg font-bold">Today&apos;s Report</h2>
         </div>
         <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${focusClass(report.suggestedFocusLevel)}`}>{report.suggestedFocusLevel} focus</span>
       </div>
@@ -78,3 +78,4 @@ function ReportSection({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
+

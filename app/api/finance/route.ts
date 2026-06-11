@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import type { FinanceAccountSummary, FinanceGoalSummary, FinanceResponse, FinanceSummary, FinanceTransactionSummary } from "@/lib/finance-types";
+import type { FinanceAccountSummary, FinanceResponse, FinanceSummary, FinanceTransactionSummary } from "@/lib/finance-types";
 
 type AccountRow = {
   id: string;
@@ -138,3 +138,4 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(buildResponse(accounts ?? [], transactions ?? [], goals ?? []));
 }
+
