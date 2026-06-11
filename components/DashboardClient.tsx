@@ -1,8 +1,8 @@
 ﻿"use client";
 
-import { Activity, BookOpen, CalendarCheck, HeartPulse, PiggyBank } from "lucide-react";
+import { BookOpen, CalendarCheck, HeartPulse, PiggyBank } from "lucide-react";
+import { DailyReportDashboardCard } from "@/components/DailyReportDashboardCard";
 import { MiniBarChart } from "@/components/MiniBarChart";
-import { ProgressBar } from "@/components/ProgressBar";
 import { ReportCard } from "@/components/ReportCard";
 import { StatCard } from "@/components/StatCard";
 import { WhoopDashboardWidget } from "@/components/WhoopDashboardWidget";
@@ -88,7 +88,7 @@ function nextOpenTask(tasks: DashboardTask[]) {
 export function DashboardClient() {
   const { habits, status: habitsStatus } = useHabits();
   const { goals, status: schoolStatus } = useSchool();
-  const { summary: finance, goals: financeGoals, status: financeStatus } = useFinance();
+  const { summary: finance, status: financeStatus } = useFinance();
   const whoopState = useWhoopDashboard();
   const sleepCard = sleepRecoveryCard(whoopState);
   const school = goals.length ? Math.round(goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length) : 0;
@@ -101,19 +101,8 @@ export function DashboardClient() {
       ? `${completedHabits} of ${habits.length} daily habits complete`
       : "No habits created yet";
   const habitValue = habitsStatus === "loading" ? "Loading" : `${habitScore}%`;
-  const savingsGoal = financeGoals[0];
-  const savingsProgress = savingsGoal?.targetAmount ? Math.min(100, Math.round((savingsGoal.currentAmount / savingsGoal.targetAmount) * 100)) : 0;
   const allTasks = goals.flatMap((goal) => goal.tasks.map((task) => ({ ...task, goalTitle: goal.title })));
   const nextTask = nextOpenTask(allTasks);
-  const recommendation = habitsStatus === "loading"
-    ? "Loading your habit check-in now."
-    : habits.length === 0
-      ? "Add one habit you can actually repeat tomorrow. Keep the first version simple."
-      : habitScore < 75
-        ? "Start tomorrow with your first unfinished habit before the day gets crowded."
-        : nextTask
-          ? `Put one focused block on ${nextTask.goalTitle}: ${nextTask.title}.`
-          : "Keep the plan simple tomorrow: habits, one focused study block, and a clean money check-in.";
   const habitSnapshot = habitsStatus === "loading"
     ? "Habits: loading today's completions."
     : habits.length
@@ -136,18 +125,7 @@ export function DashboardClient() {
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         {recoveryTrendPanel({ state: whoopState })}
-        <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
-          <div className="mb-5 flex items-center gap-2">
-            <Activity className="size-5 text-moss" />
-            <h2 className="text-lg font-bold">Daily AI report</h2>
-          </div>
-          <p className="leading-7 text-ink/75">{recommendation}</p>
-          <div className="mt-5 space-y-4">
-            <ProgressBar value={habitScore} label="Habits" />
-            <ProgressBar value={school} label="School goals" />
-            <ProgressBar value={savingsProgress} label={savingsGoal ? savingsGoal.title : "Savings target"} />
-          </div>
-        </section>
+        <DailyReportDashboardCard />
       </div>
 
       <div className="mt-6">
