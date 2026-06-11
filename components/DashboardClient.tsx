@@ -7,11 +7,15 @@ import { ReportCard } from "@/components/ReportCard";
 import { StatCard } from "@/components/StatCard";
 import { WhoopDashboardWidget } from "@/components/WhoopDashboardWidget";
 import { useHabits } from "@/components/useHabits";
+import { useSchool } from "@/components/useSchool";
 import { useWhoopDashboard } from "@/components/useWhoopDashboard";
-import { averageProgress, financeSummary } from "@/lib/calculations";
-import { initialSchoolGoals, initialTransactions } from "@/lib/mock-data";
+import { financeSummary } from "@/lib/calculations";
+import { initialTransactions } from "@/lib/mock-data";
 import { useLocalStorageState } from "@/lib/use-local-storage";
+import type { SchoolTaskSummary } from "@/lib/school-types";
 import type { WhoopDashboardState } from "@/lib/whoop-dashboard-types";
+
+type DashboardTask = SchoolTaskSummary & { goalTitle: string };
 
 function formatPercent(value: number | null) {
   return value === null ? "--" : `${Math.round(value)}%`;
@@ -88,13 +92,20 @@ function recoveryTrendPanel({ state }: { state: WhoopDashboardState }) {
   );
 }
 
+function nextOpenTask(tasks: DashboardTask[]) {
+  return tasks
+    .filter((task) => task.status !== "completed")
+    .sort((a, b) => (a.dueDate ?? "9999-12-31").localeCompare(b.dueDate ?? "9999-12-31"))[0];
+}
+
 export function DashboardClient() {
   const { habits, status: habitsStatus } = useHabits();
-  const [goals] = useLocalStorageState("life-os-school-goals", initialSchoolGoals);
+  const { goals, status: schoolStatus } = useSchool();
   const [transactions] = useLocalStorageState("life-os-transactions", initialTransactions);
   const whoopState = useWhoopDashboard();
   const sleepCard = sleepRecoveryCard(whoopState);
-  const school = averageProgress(goals);
+  const school = goals.length ? Math.round(goals.reduce((sum, goal) => sum + goal.progress, 0) / goals.length) : 0;
+  const schoolValue = schoolStatus === "loading" ? "Loading" : `${school}%`;
   const finances = financeSummary(transactions);
   const completedHabits = habits.filter((habit) => habit.completedToday).length;
   const habitScore = habits.length ? Math.round((completedHabits / habits.length) * 100) : 0;
@@ -104,10 +115,8 @@ export function DashboardClient() {
       ? `${completedHabits} of ${habits.length} daily habits complete`
       : "No habits created yet";
   const habitValue = habitsStatus === "loading" ? "Loading" : `${habitScore}%`;
-  const nextTask = goals
-    .flatMap((goal) => goal.tasks.map((task) => ({ ...task, className: goal.className })))
-    .filter((task) => !task.done)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+  const allTasks = goals.flatMap((goal) => goal.tasks.map((task) => ({ ...task, goalTitle: goal.title })));
+  const nextTask = nextOpenTask(allTasks);
   const recommendation = habitsStatus === "loading"
     ? "Loading your habit check-in now."
     : habits.length === 0
@@ -115,21 +124,24 @@ export function DashboardClient() {
       : habitScore < 75
         ? "Start tomorrow with your first unfinished habit before the day gets crowded."
         : nextTask
-          ? `Put one focused block on ${nextTask.className}: ${nextTask.title}.`
+          ? `Put one focused block on ${nextTask.goalTitle}: ${nextTask.title}.`
           : "Keep the plan simple tomorrow: habits, one focused study block, and a clean money check-in.";
   const habitSnapshot = habitsStatus === "loading"
     ? "Habits: loading today's completions."
     : habits.length
       ? `Habits: ${habitScore}% complete today (${completedHabits} of ${habits.length}).`
       : "Habits: no habits created yet.";
-  const snapshot = `${healthSnapshot(whoopState)} ${habitSnapshot} School goals are averaging ${school}% progress.${nextTask ? ` Next deadline: ${nextTask.title} for ${nextTask.className} on ${nextTask.dueDate}.` : " No open school tasks right now."}`;
+  const schoolSnapshot = schoolStatus === "loading"
+    ? "School goals are loading."
+    : `School goals are averaging ${school}% progress.`;
+  const snapshot = `${healthSnapshot(whoopState)} ${habitSnapshot} ${schoolSnapshot}${nextTask ? ` Next deadline: ${nextTask.title} for ${nextTask.goalTitle} on ${nextTask.dueDate ?? "no date"}.` : " No open school tasks right now."}`;
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Sleep / recovery" value={sleepCard.value} detail={sleepCard.detail} icon={HeartPulse} />
         <StatCard label="Habit completion" value={habitValue} detail={habitDetail} icon={CalendarCheck} tone="sky" />
-        <StatCard label="School progress" value={`${school}%`} detail="Average progress across goals" icon={BookOpen} tone="gold" />
+        <StatCard label="School progress" value={schoolValue} detail={schoolStatus === "loading" ? "Loading school goals" : "Average progress across goals"} icon={BookOpen} tone="gold" />
         <StatCard label="Monthly balance" value={`$${finances.balance}`} detail={`$${finances.savings} saved this month`} icon={PiggyBank} tone="clay" />
       </div>
 

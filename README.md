@@ -149,3 +149,21 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 Keep `SUPABASE_SERVICE_ROLE_KEY` private. The habits tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.
+
+## School Storage Setup
+
+Run this SQL file in the Supabase SQL editor:
+
+```text
+lib/school-schema.sql
+```
+
+It creates `public.school_goals` and `public.school_tasks` for persistent per-user classes, goals, deadlines, priorities, task status, and progress. The app reads and writes these tables through authenticated server routes, using the logged-in Supabase user id for `user_id`.
+
+Required server environment variable:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` private. The school tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.
