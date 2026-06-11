@@ -2,16 +2,16 @@
 
 import { ReportCard } from "@/components/ReportCard";
 import { SectionHeader } from "@/components/SectionHeader";
+import { useFinance } from "@/components/useFinance";
 import { useHabits } from "@/components/useHabits";
 import { useSchool } from "@/components/useSchool";
-import { initialTransactions, today, whoopMetrics } from "@/lib/mock-data";
+import { today, whoopMetrics } from "@/lib/mock-data";
 import { generateDailyReport } from "@/lib/report";
-import { useLocalStorageState } from "@/lib/use-local-storage";
 
 export default function ReportsPage() {
   const { habits, status: habitsStatus } = useHabits();
   const { goals, status: schoolStatus } = useSchool();
-  const [transactions] = useLocalStorageState("life-os-transactions", initialTransactions);
+  const { transactions, status: financeStatus } = useFinance();
   const report = generateDailyReport({
     metrics: whoopMetrics,
     habits: habits.map((habit) => ({
@@ -34,7 +34,14 @@ export default function ReportsPage() {
         done: task.status === "completed"
       }))
     })),
-    transactions,
+    transactions: transactions.map((transaction) => ({
+      id: transaction.id,
+      date: transaction.transactionDate,
+      type: transaction.amount > 0 ? "Income" : transaction.category === "Savings" ? "Savings" : "Expense",
+      category: transaction.category,
+      amount: Math.abs(transaction.amount),
+      note: transaction.description
+    })),
     date: today
   });
 
@@ -45,10 +52,10 @@ export default function ReportsPage() {
         <ReportCard title="Health and sleep" body={report.health} />
         <ReportCard title="Habits" body={habitsStatus === "loading" ? "Loading today's habit data." : report.habits} />
         <ReportCard title="School goals" body={schoolStatus === "loading" ? "Loading school goals." : report.school} />
-        <ReportCard title="Finances" body={report.finances} />
+        <ReportCard title="Finances" body={financeStatus === "loading" ? "Loading finance data." : report.finances} />
         <section className="rounded-lg border border-moss/20 bg-mint p-5">
           <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-moss">Recommendation for tomorrow</h2>
-          <p className="leading-7 text-ink/75">{habitsStatus === "loading" || schoolStatus === "loading" ? "Loading your check-in now." : report.recommendation}</p>
+          <p className="leading-7 text-ink/75">{habitsStatus === "loading" || schoolStatus === "loading" || financeStatus === "loading" ? "Loading your check-in now." : report.recommendation}</p>
         </section>
       </div>
     </>

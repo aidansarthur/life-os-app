@@ -167,3 +167,21 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 Keep `SUPABASE_SERVICE_ROLE_KEY` private. The school tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.
+
+## Finance Storage Setup
+
+Run this SQL file in the Supabase SQL editor:
+
+```text
+lib/finance-schema.sql
+```
+
+It creates `public.finance_accounts`, `public.finance_transactions`, and `public.finance_goals` for persistent per-user accounts, manual transactions, budgets/savings tracking, and goal progress. The app reads and writes these tables through authenticated server routes, using the logged-in Supabase user id for `user_id`.
+
+Required server environment variable:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` private. The finance tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.
