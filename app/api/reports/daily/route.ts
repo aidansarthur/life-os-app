@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { fetchGoogleCalendarEvents } from "@/lib/google-calendar-api";
 import { fetchWhoopJson } from "@/lib/whoop-api";
 import type { DailyReport } from "@/lib/daily-report-types";
 
@@ -12,6 +13,7 @@ type TaskRow = { title: string; due_date: string | null; status: string };
 type AccountRow = { balance: number | string };
 type FinanceGoalRow = { title: string; target_amount: number | string; current_amount: number | string };
 type LongGoalRow = { title: string; target_value: number | string; current_value: number | string; target_date: string | null; status: string };
+type CalendarEventRow = { title: string; startAt: string; endAt: string | null };
 
 type WhoopMetrics = {
   recoveryScore: number | null;
@@ -114,6 +116,7 @@ function buildReport(input: {
   accounts: AccountRow[];
   financeGoals: FinanceGoalRow[];
   longGoals: LongGoalRow[];
+  calendarEvents: CalendarEventRow[];
 }): DailyReport {
   const today = dateKey(new Date());
   const soon = dateKey(addDays(new Date(), 2));
@@ -135,13 +138,14 @@ function buildReport(input: {
   const todayTime = new Date(`${today}T00:00:00.000Z`).getTime();
   const behindGoals = activeLongGoals.filter((goal) => goal.target_date && new Date(`${goal.target_date}T23:59:59.999Z`).getTime() <= todayTime && toNumber(goal.current_value) < toNumber(goal.target_value));
   const aheadGoals = activeLongGoals.filter((goal) => toNumber(goal.target_value) > 0 && (toNumber(goal.current_value) / toNumber(goal.target_value)) * 100 >= 80);
+  const schedulePhrase = input.calendarEvents.length ? `Schedule has ${input.calendarEvents.length} event${input.calendarEvents.length === 1 ? "" : "s"} today, starting with ${input.calendarEvents[0].title}.` : "Schedule looks open today.";
   const goalPhrase = activeLongGoals.length
     ? `Long-term goals average ${goalProgress}% progress${behindGoals.length ? `, with ${behindGoals[0].title} needing attention` : aheadGoals.length ? `, led by ${aheadGoals[0].title}` : ""}.`
     : "No long-term goals are active yet.";
 
   const productivitySummary = input.habits.length
-    ? `You have completed ${completedHabits} of ${input.habits.length} habits today (${habitRate}%). ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress. ${goalPhrase}`
-    : `No habits are set up yet. ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress. ${goalPhrase}`;
+    ? `You have completed ${completedHabits} of ${input.habits.length} habits today (${habitRate}%). ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress. ${goalPhrase} ${schedulePhrase}`
+    : `No habits are set up yet. ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress. ${goalPhrase} ${schedulePhrase}`;
   const financeSummary = input.financeGoals.length
     ? `Your account balance total is $${Math.round(totalBalance)}. Finance goals are averaging ${savingsProgress}% complete across ${input.financeGoals.length} goal${input.financeGoals.length === 1 ? "" : "s"}.`
     : `Your account balance total is $${Math.round(totalBalance)}. No finance goals are set yet, so create one clear savings target to track progress.`;
@@ -153,6 +157,7 @@ function buildReport(input: {
   if (habitRate < 75 && input.habits.length) priorities.push("Complete the next unfinished habit before adding new work.");
   if ((input.metrics.recoveryScore ?? 0) >= 75 && activeTasks.length <= 2) priorities.push("Use the strong recovery window for training and one deep-work block.");
   if (input.financeGoals.length && savingsProgress < 50) priorities.push(`Add progress toward ${input.financeGoals[0].title} or review spending today.`);
+  if (input.calendarEvents.length >= 4) priorities.push("Keep priorities short because today has a busy calendar.");
   if (behindGoals.length) priorities.push(`Move ${behindGoals[0].title} forward with one measurable step today.`);
   else if (aheadGoals.length) priorities.push(`Protect momentum on ${aheadGoals[0].title} with a small next step.`);
   priorities.push("Do a five-minute evening review so tomorrow starts clean.");
@@ -181,8 +186,13 @@ export async function GET(request: NextRequest) {
   const since = new Date();
   since.setUTCHours(0, 0, 0, 0);
 
-  const [metrics, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, financeGoalsResult, longGoalsResult] = await Promise.all([
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = addDays(todayStart, 1);
+
+  const [metrics, calendarEvents, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, financeGoalsResult, longGoalsResult] = await Promise.all([
     getWhoopMetrics(user.id),
+    fetchGoogleCalendarEvents(user.id, todayStart, tomorrowStart).catch(() => []),
     supabase.from("habits").select("id, title").eq("user_id", user.id),
     supabase.from("habit_completions").select("habit_id, completed_at").eq("user_id", user.id).gte("completed_at", since.toISOString()),
     supabase.from("school_goals").select("id, title, progress").eq("user_id", user.id),
@@ -206,10 +216,12 @@ export async function GET(request: NextRequest) {
       tasks: tasksResult.data ?? [],
       accounts: accountsResult.data ?? [],
       financeGoals: financeGoalsResult.data ?? [],
-      longGoals: longGoalsResult.data ?? []
+      longGoals: longGoalsResult.data ?? [],
+      calendarEvents
     })
   });
 }
+
 
 
 

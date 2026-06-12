@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { fetchGoogleCalendarEvents } from "@/lib/google-calendar-api";
 import { fetchWhoopJson } from "@/lib/whoop-api";
 import type { WeeklyReport } from "@/lib/weekly-report-types";
 
@@ -12,6 +13,7 @@ type TaskRow = { title: string; due_date: string | null; status: string; updated
 type AccountRow = { balance: number | string };
 type TransactionRow = { amount: number | string; category: string; transaction_date: string };
 type FinanceGoalRow = { title: string; target_amount: number | string; current_amount: number | string };
+type CalendarEventRow = { title: string; startAt: string; endAt: string | null };
 type LongGoalRow = { title: string; target_value: number | string; current_value: number | string; target_date: string | null; status: string; updated_at: string };
 
 type WhoopWeeklyMetrics = {
@@ -100,6 +102,7 @@ function buildWeeklyReport(input: {
   accounts: AccountRow[];
   transactions: TransactionRow[];
   financeGoals: FinanceGoalRow[];
+  calendarEvents: CalendarEventRow[];
   longGoals: LongGoalRow[];
 }): WeeklyReport {
   const uniqueCompletionKeys = new Set(input.completions.map((completion) => `${completion.habit_id}:${completion.completed_at.slice(0, 10)}`));
@@ -129,7 +132,15 @@ function buildWeeklyReport(input: {
   const schoolProgressSummary = input.goals.length
     ? `School goals averaged ${averageSchoolProgress}% progress. You completed ${completedTasks.length} task${completedTasks.length === 1 ? "" : "s"} and have ${activeTasks.length} active task${activeTasks.length === 1 ? "" : "s"}.`
     : "No school goals are set yet, so there is no weekly academic progress to summarize.";
-  const financeSummary = `Accounts total $${Math.round(totalBalance)}. This week: $${Math.round(income)} income, $${Math.round(expenses)} expenses, $${Math.round(savings)} saved. Finance goals average ${financeGoalProgress}% complete.`;
+  const eventsByDay = input.calendarEvents.reduce<Record<string, number>>((days, event) => {
+    const key = event.startAt.slice(0, 10);
+    days[key] = (days[key] ?? 0) + 1;
+    return days;
+  }, {});
+  const busiestDay = Object.entries(eventsByDay).sort((a, b) => b[1] - a[1])[0];
+  const upcomingEvent = input.calendarEvents[0];
+  const scheduleSummary = busiestDay ? ` Busiest schedule day: ${busiestDay[0]} with ${busiestDay[1]} event${busiestDay[1] === 1 ? "" : "s"}.` : " Calendar has no events for the tracked week.";
+  const financeSummary = `Accounts total $${Math.round(totalBalance)}. This week: $${Math.round(income)} income, $${Math.round(expenses)} expenses, $${Math.round(savings)} saved. Finance goals average ${financeGoalProgress}% complete.${scheduleSummary}`;
 
   const winCandidates = [
     completedTasks.length ? `Completed ${completedTasks.length} school task${completedTasks.length === 1 ? "" : "s"}.` : "",
@@ -152,6 +163,8 @@ function buildWeeklyReport(input: {
   if (overdueTasks.length) priorities.push(`Clear overdue school work, starting with ${overdueTasks[0].title}.`);
   if (habitCompletionRate < 70 && input.habits.length) priorities.push("Pick the three most important habits and complete them before adding extra work.");
   if (input.financeGoals.length && financeGoalProgress < 60) priorities.push(`Make progress on ${input.financeGoals[0].title} and review spending categories.`);
+  if (busiestDay && busiestDay[1] >= 4) priorities.push(`Protect focus blocks around the busy day on ${busiestDay[0]}.`);
+  if (upcomingEvent) priorities.push(`Prepare for ${upcomingEvent.title}.`);
   if (neglectedGoal) priorities.push(`Schedule one measurable action for ${neglectedGoal.title}.`);
   if (!priorities.length) priorities.push("Use the strong base for one training goal, one deep-work block, and one finance check-in.");
   priorities.push("Plan deadlines and training blocks before the week starts.");
@@ -188,8 +201,9 @@ export async function GET(request: NextRequest) {
   const weekStart = dateKey(start);
   const weekEnd = dateKey(end);
 
-  const [whoop, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, transactionsResult, financeGoalsResult, longGoalsResult] = await Promise.all([
+  const [whoop, calendarEvents, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, transactionsResult, financeGoalsResult, longGoalsResult] = await Promise.all([
     getWhoopWeeklyMetrics(user.id),
+    fetchGoogleCalendarEvents(user.id, start, end).catch(() => []),
     supabase.from("habits").select("id, title").eq("user_id", user.id),
     supabase.from("habit_completions").select("habit_id, completed_at").eq("user_id", user.id).gte("completed_at", start.toISOString()).lte("completed_at", end.toISOString()),
     supabase.from("school_goals").select("id, title, progress").eq("user_id", user.id),
@@ -217,9 +231,11 @@ export async function GET(request: NextRequest) {
       accounts: accountsResult.data ?? [],
       transactions: transactionsResult.data ?? [],
       financeGoals: financeGoalsResult.data ?? [],
+      calendarEvents,
       longGoals: longGoalsResult.data ?? []
     })
   });
 }
+
 
 

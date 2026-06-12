@@ -1,11 +1,12 @@
 ﻿"use client";
 
-import { BookOpen, CalendarCheck, Flag, HeartPulse, PiggyBank, Target } from "lucide-react";
+import { BookOpen, CalendarCheck, CalendarDays, Flag, HeartPulse, PiggyBank, Target } from "lucide-react";
 import { DailyReportDashboardCard } from "@/components/DailyReportDashboardCard";
 import { MiniBarChart } from "@/components/MiniBarChart";
 import { ReportCard } from "@/components/ReportCard";
 import { StatCard } from "@/components/StatCard";
 import { WhoopDashboardWidget } from "@/components/WhoopDashboardWidget";
+import { useCalendarEvents } from "@/components/useCalendarEvents";
 import { useFinance } from "@/components/useFinance";
 import { useGoals } from "@/components/useGoals";
 import { useHabits } from "@/components/useHabits";
@@ -87,6 +88,7 @@ function nextOpenTask(tasks: DashboardTask[]) {
 }
 
 export function DashboardClient() {
+  const { today: todayEvents, connected: calendarConnected, status: calendarStatus } = useCalendarEvents();
   const { habits, status: habitsStatus } = useHabits();
   const { goals: lifeGoals, status: goalsStatus } = useGoals();
   const { goals, status: schoolStatus } = useSchool();
@@ -118,7 +120,8 @@ export function DashboardClient() {
     ? "Finances are loading."
     : `Finances: ${formatMoney(finance.monthlyIncome)} income, ${formatMoney(finance.monthlyExpenses)} expenses, ${formatMoney(finance.monthlySavings)} saved, and ${formatMoney(finance.monthlyBalance)} monthly balance.`;
   const goalSnapshot = goalsStatus === "loading" ? "Goals are loading." : activeGoals.length ? `Goals: ${activeGoals.length} active with ${averageGoalProgress}% average progress.` : "Goals: no active long-term goals yet.";
-  const snapshot = `${healthSnapshot(whoopState)} ${habitSnapshot} ${schoolSnapshot}${nextTask ? ` Next deadline: ${nextTask.title} for ${nextTask.goalTitle} on ${nextTask.dueDate ?? "no date"}.` : " No open school tasks right now."} ${financeSnapshot} ${goalSnapshot}`;
+  const scheduleSnapshot = calendarStatus === "loading" ? "Schedule is loading." : calendarConnected ? `Schedule: ${todayEvents.length} event${todayEvents.length === 1 ? "" : "s"} today.` : "Schedule: connect Google Calendar for today events.";
+  const snapshot = `${healthSnapshot(whoopState)} ${habitSnapshot} ${schoolSnapshot}${nextTask ? ` Next deadline: ${nextTask.title} for ${nextTask.goalTitle} on ${nextTask.dueDate ?? "no date"}.` : " No open school tasks right now."} ${financeSnapshot} ${goalSnapshot} ${scheduleSnapshot}`;
 
   return (
     <>
@@ -133,6 +136,10 @@ export function DashboardClient() {
         <StatCard label="Active goals" value={goalsStatus === "loading" ? "Loading" : String(activeGoals.length)} detail="Long-term goals in progress" icon={Target} tone="sky" />
         <StatCard label="Goal progress" value={goalsStatus === "loading" ? "Loading" : `${averageGoalProgress}%`} detail="Average active goal progress" icon={Flag} tone="gold" />
         <StatCard label="Closest milestone" value={goalsStatus === "loading" ? "Loading" : closestMilestone ? closestMilestone.title : "None"} detail={closestMilestone ? closestMilestone.goalTitle : "Add milestones to track next steps"} icon={Target} tone="clay" />
+      </div>
+
+      <div className="mt-6">
+        <StatCard label="Today schedule" value={calendarStatus === "loading" ? "Loading" : calendarConnected ? String(todayEvents.length) : "Connect"} detail={calendarConnected && todayEvents[0] ? todayEvents[0].title : calendarConnected ? "No events today" : "Connect Google Calendar"} icon={CalendarDays} tone="sky" />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
@@ -150,4 +157,5 @@ export function DashboardClient() {
     </>
   );
 }
+
 

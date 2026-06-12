@@ -203,3 +203,28 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 Keep `SUPABASE_SERVICE_ROLE_KEY` private. The goal tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.
+
+## Google Calendar Setup
+
+Run this SQL file in the Supabase SQL editor:
+
+```text
+lib/calendar-schema.sql
+```
+
+It creates `public.google_calendar_tokens` and `public.calendar_events` for per-user Google Calendar token storage and cached schedule events. The app reads and writes these tables through authenticated server routes, using the logged-in Supabase user id as `owner_id`.
+
+Add these server environment variables in Vercel and `.env.local`:
+
+```text
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+In Google Cloud Console, register this OAuth redirect URI:
+
+```text
+https://life-os-app-lime.vercel.app/api/google/callback
+```
+
+Keep `GOOGLE_CLIENT_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` private. The calendar token table has RLS enabled and intentionally exposes no browser policies in Version 1.
