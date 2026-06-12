@@ -1,6 +1,6 @@
 ﻿import Link from "next/link";
 import { LogoutButton } from "@/components/LogoutButton";
-import { Activity, BarChart3, BookOpen, CalendarCheck, HeartPulse, PiggyBank, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { Activity, BarChart3, BookOpen, CalendarCheck, HeartPulse, PiggyBank, Settings, ShieldCheck, Target, UserRound } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
@@ -8,6 +8,7 @@ const navItems = [
   { href: "/habits", label: "Habits", icon: CalendarCheck },
   { href: "/school", label: "School", icon: BookOpen },
   { href: "/finances", label: "Finances", icon: PiggyBank },
+  { href: "/goals", label: "Goals", icon: Target },
   { href: "/reports", label: "Reports", icon: Activity },
   { href: "/auth", label: "Auth", icon: UserRound },
   { href: "/privacy", label: "Privacy", icon: ShieldCheck },
@@ -67,3 +68,4 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

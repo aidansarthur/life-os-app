@@ -11,6 +11,7 @@ type GoalRow = { id: string; title: string; progress: number };
 type TaskRow = { title: string; due_date: string | null; status: string };
 type AccountRow = { balance: number | string };
 type FinanceGoalRow = { title: string; target_amount: number | string; current_amount: number | string };
+type LongGoalRow = { title: string; target_value: number | string; current_value: number | string; target_date: string | null; status: string };
 
 type WhoopMetrics = {
   recoveryScore: number | null;
@@ -112,6 +113,7 @@ function buildReport(input: {
   tasks: TaskRow[];
   accounts: AccountRow[];
   financeGoals: FinanceGoalRow[];
+  longGoals: LongGoalRow[];
 }): DailyReport {
   const today = dateKey(new Date());
   const soon = dateKey(addDays(new Date(), 2));
@@ -126,10 +128,20 @@ function buildReport(input: {
   const savingsProgress = input.financeGoals.length
     ? Math.round(input.financeGoals.reduce((sum, goal) => sum + (toNumber(goal.target_amount) ? Math.min(100, (toNumber(goal.current_amount) / toNumber(goal.target_amount)) * 100) : 0), 0) / input.financeGoals.length)
     : 0;
+  const activeLongGoals = input.longGoals.filter((goal) => goal.status === "active");
+  const goalProgress = activeLongGoals.length
+    ? Math.round(activeLongGoals.reduce((sum, goal) => sum + (toNumber(goal.target_value) ? Math.min(100, (toNumber(goal.current_value) / toNumber(goal.target_value)) * 100) : 0), 0) / activeLongGoals.length)
+    : 0;
+  const todayTime = new Date(`${today}T00:00:00.000Z`).getTime();
+  const behindGoals = activeLongGoals.filter((goal) => goal.target_date && new Date(`${goal.target_date}T23:59:59.999Z`).getTime() <= todayTime && toNumber(goal.current_value) < toNumber(goal.target_value));
+  const aheadGoals = activeLongGoals.filter((goal) => toNumber(goal.target_value) > 0 && (toNumber(goal.current_value) / toNumber(goal.target_value)) * 100 >= 80);
+  const goalPhrase = activeLongGoals.length
+    ? `Long-term goals average ${goalProgress}% progress${behindGoals.length ? `, with ${behindGoals[0].title} needing attention` : aheadGoals.length ? `, led by ${aheadGoals[0].title}` : ""}.`
+    : "No long-term goals are active yet.";
 
   const productivitySummary = input.habits.length
-    ? `You have completed ${completedHabits} of ${input.habits.length} habits today (${habitRate}%). ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress.`
-    : `No habits are set up yet. ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress.`;
+    ? `You have completed ${completedHabits} of ${input.habits.length} habits today (${habitRate}%). ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress. ${goalPhrase}`
+    : `No habits are set up yet. ${activeTasks.length} school tasks are active, with ${overdueTasks.length} overdue and ${dueSoonTasks.length} due soon. School goals are averaging ${schoolProgress}% progress. ${goalPhrase}`;
   const financeSummary = input.financeGoals.length
     ? `Your account balance total is $${Math.round(totalBalance)}. Finance goals are averaging ${savingsProgress}% complete across ${input.financeGoals.length} goal${input.financeGoals.length === 1 ? "" : "s"}.`
     : `Your account balance total is $${Math.round(totalBalance)}. No finance goals are set yet, so create one clear savings target to track progress.`;
@@ -141,6 +153,8 @@ function buildReport(input: {
   if (habitRate < 75 && input.habits.length) priorities.push("Complete the next unfinished habit before adding new work.");
   if ((input.metrics.recoveryScore ?? 0) >= 75 && activeTasks.length <= 2) priorities.push("Use the strong recovery window for training and one deep-work block.");
   if (input.financeGoals.length && savingsProgress < 50) priorities.push(`Add progress toward ${input.financeGoals[0].title} or review spending today.`);
+  if (behindGoals.length) priorities.push(`Move ${behindGoals[0].title} forward with one measurable step today.`);
+  else if (aheadGoals.length) priorities.push(`Protect momentum on ${aheadGoals[0].title} with a small next step.`);
   priorities.push("Do a five-minute evening review so tomorrow starts clean.");
 
   let suggestedFocusLevel: DailyReport["suggestedFocusLevel"] = "Moderate";
@@ -167,17 +181,18 @@ export async function GET(request: NextRequest) {
   const since = new Date();
   since.setUTCHours(0, 0, 0, 0);
 
-  const [metrics, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, financeGoalsResult] = await Promise.all([
+  const [metrics, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, financeGoalsResult, longGoalsResult] = await Promise.all([
     getWhoopMetrics(user.id),
     supabase.from("habits").select("id, title").eq("user_id", user.id),
     supabase.from("habit_completions").select("habit_id, completed_at").eq("user_id", user.id).gte("completed_at", since.toISOString()),
     supabase.from("school_goals").select("id, title, progress").eq("user_id", user.id),
     supabase.from("school_tasks").select("title, due_date, status").eq("user_id", user.id).order("due_date", { ascending: true, nullsFirst: false }),
     supabase.from("finance_accounts").select("balance").eq("user_id", user.id),
-    supabase.from("finance_goals").select("title, target_amount, current_amount").eq("user_id", user.id)
+    supabase.from("finance_goals").select("title, target_amount, current_amount").eq("user_id", user.id),
+    supabase.from("goals").select("title, target_value, current_value, target_date, status").eq("user_id", user.id)
   ]);
 
-  if (habitsResult.error || completionsResult.error || goalsResult.error || tasksResult.error || accountsResult.error || financeGoalsResult.error) {
+  if (habitsResult.error || completionsResult.error || goalsResult.error || tasksResult.error || accountsResult.error || financeGoalsResult.error || longGoalsResult.error) {
     return NextResponse.json({ ok: false, error: "request_failed" }, { status: 500 });
   }
 
@@ -190,10 +205,14 @@ export async function GET(request: NextRequest) {
       goals: goalsResult.data ?? [],
       tasks: tasksResult.data ?? [],
       accounts: accountsResult.data ?? [],
-      financeGoals: financeGoalsResult.data ?? []
+      financeGoals: financeGoalsResult.data ?? [],
+      longGoals: longGoalsResult.data ?? []
     })
   });
 }
+
+
+
 
 
 

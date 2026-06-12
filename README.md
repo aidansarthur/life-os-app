@@ -185,3 +185,21 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 Keep `SUPABASE_SERVICE_ROLE_KEY` private. The finance tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.
+
+## Goal Tracking Setup
+
+Run this SQL file in the Supabase SQL editor:
+
+```text
+lib/goals-schema.sql
+```
+
+It creates `public.goals` and `public.goal_milestones` for persistent per-user long-term goals, progress values, categories, target dates, statuses, and milestone tracking. The app reads and writes these tables through authenticated server routes, using the logged-in Supabase user id for `user_id`.
+
+Required server environment variable:
+
+```text
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` private. The goal tables have RLS enabled and intentionally do not expose direct browser policies in Version 1.

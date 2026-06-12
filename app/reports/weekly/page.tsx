@@ -42,6 +42,7 @@ export default function WeeklyReportPage() {
           <ReportCard title="Weekly health summary" body={report.weeklyHealthSummary} />
           <ReportCard title="School progress" body={report.schoolProgressSummary} />
           <ReportCard title="Finance summary" body={report.financeSummary} />
+          <ReportCard title="Goal progress" body={report.weeklyGoalProgress} />
           <div className="grid gap-4 md:grid-cols-2">
             <ReportCard title="Biggest win" body={report.biggestWin} />
             <ReportCard title="Biggest concern" body={report.biggestConcern} />
@@ -64,3 +65,4 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 function StatusCard({ message, tone = "default" }: { message: string; tone?: "default" | "error" }) {
   return <section className={`rounded-lg border p-5 text-sm font-semibold shadow-soft ${tone === "error" ? "border-clay/20 bg-clay/10 text-clay" : "border-ink/10 bg-white text-ink/60"}`}>{message}</section>;
 }
+

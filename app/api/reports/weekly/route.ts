@@ -12,6 +12,7 @@ type TaskRow = { title: string; due_date: string | null; status: string; updated
 type AccountRow = { balance: number | string };
 type TransactionRow = { amount: number | string; category: string; transaction_date: string };
 type FinanceGoalRow = { title: string; target_amount: number | string; current_amount: number | string };
+type LongGoalRow = { title: string; target_value: number | string; current_value: number | string; target_date: string | null; status: string; updated_at: string };
 
 type WhoopWeeklyMetrics = {
   averageRecovery: number | null;
@@ -99,6 +100,7 @@ function buildWeeklyReport(input: {
   accounts: AccountRow[];
   transactions: TransactionRow[];
   financeGoals: FinanceGoalRow[];
+  longGoals: LongGoalRow[];
 }): WeeklyReport {
   const uniqueCompletionKeys = new Set(input.completions.map((completion) => `${completion.habit_id}:${completion.completed_at.slice(0, 10)}`));
   const possibleHabitCompletions = input.habits.length * 7;
@@ -114,6 +116,12 @@ function buildWeeklyReport(input: {
   const financeGoalProgress = input.financeGoals.length
     ? Math.round(input.financeGoals.reduce((sum, goal) => sum + (toNumber(goal.target_amount) ? Math.min(100, (toNumber(goal.current_amount) / toNumber(goal.target_amount)) * 100) : 0), 0) / input.financeGoals.length)
     : 0;
+  const activeLongGoals = input.longGoals.filter((goal) => goal.status === "active");
+  const goalProgressValues = activeLongGoals.map((goal) => toNumber(goal.target_value) ? Math.min(100, (toNumber(goal.current_value) / toNumber(goal.target_value)) * 100) : 0);
+  const averageGoalProgress = goalProgressValues.length ? Math.round(goalProgressValues.reduce((sum, value) => sum + value, 0) / goalProgressValues.length) : 0;
+  const biggestGoal = [...activeLongGoals].sort((a, b) => (toNumber(b.target_value) ? toNumber(b.current_value) / toNumber(b.target_value) : 0) - (toNumber(a.target_value) ? toNumber(a.current_value) / toNumber(a.target_value) : 0))[0];
+  const neglectedGoal = [...activeLongGoals].sort((a, b) => (toNumber(a.target_value) ? toNumber(a.current_value) / toNumber(a.target_value) : 0) - (toNumber(b.target_value) ? toNumber(b.current_value) / toNumber(b.target_value) : 0))[0];
+  const weeklyGoalProgress = activeLongGoals.length ? `${activeLongGoals.length} active long-term goal${activeLongGoals.length === 1 ? "" : "s"} averaged ${averageGoalProgress}% progress.` : "No active long-term goals were tracked this week.";
 
   const weeklyHealthSummary = input.whoop.averageRecovery === null && input.whoop.averageSleepPerformance === null
     ? "WHOOP weekly data is not available yet. Connect or refresh WHOOP to include recovery and sleep trends."
@@ -127,14 +135,16 @@ function buildWeeklyReport(input: {
     completedTasks.length ? `Completed ${completedTasks.length} school task${completedTasks.length === 1 ? "" : "s"}.` : "",
     habitCompletionRate >= 70 ? `Strong habit consistency at ${habitCompletionRate}%.` : "",
     (input.whoop.averageRecovery ?? 0) >= 70 ? `Solid recovery average at ${input.whoop.averageRecovery}%.` : "",
-    savings > 0 ? `Saved $${Math.round(savings)} this week.` : ""
+    savings > 0 ? `Saved $${Math.round(savings)} this week.` : "",
+    biggestGoal ? `${biggestGoal.title} is the strongest long-term goal at ${Math.round(toNumber(biggestGoal.target_value) ? (toNumber(biggestGoal.current_value) / toNumber(biggestGoal.target_value)) * 100 : 0)}%.` : ""
   ].filter(Boolean);
 
   const concernCandidates = [
     overdueTasks.length ? `${overdueTasks.length} school task${overdueTasks.length === 1 ? " is" : "s are"} overdue or behind.` : "",
     habitCompletionRate > 0 && habitCompletionRate < 50 ? `Habit completion was low at ${habitCompletionRate}%.` : "",
     (input.whoop.averageRecovery ?? 100) < 50 ? `Recovery averaged only ${input.whoop.averageRecovery}%.` : "",
-    expenses > income && income > 0 ? "Expenses were higher than income this week." : ""
+    expenses > income && income > 0 ? "Expenses were higher than income this week." : "",
+    neglectedGoal && toNumber(neglectedGoal.target_value) > 0 && (toNumber(neglectedGoal.current_value) / toNumber(neglectedGoal.target_value)) * 100 < 30 ? `${neglectedGoal.title} is the most neglected long-term goal.` : ""
   ].filter(Boolean);
 
   const priorities: string[] = [];
@@ -142,6 +152,7 @@ function buildWeeklyReport(input: {
   if (overdueTasks.length) priorities.push(`Clear overdue school work, starting with ${overdueTasks[0].title}.`);
   if (habitCompletionRate < 70 && input.habits.length) priorities.push("Pick the three most important habits and complete them before adding extra work.");
   if (input.financeGoals.length && financeGoalProgress < 60) priorities.push(`Make progress on ${input.financeGoals[0].title} and review spending categories.`);
+  if (neglectedGoal) priorities.push(`Schedule one measurable action for ${neglectedGoal.title}.`);
   if (!priorities.length) priorities.push("Use the strong base for one training goal, one deep-work block, and one finance check-in.");
   priorities.push("Plan deadlines and training blocks before the week starts.");
 
@@ -154,6 +165,9 @@ function buildWeeklyReport(input: {
     habitCompletionRate,
     schoolProgressSummary,
     financeSummary,
+    weeklyGoalProgress,
+    biggestGoalAchievement: biggestGoal ? `${biggestGoal.title} is at ${Math.round(toNumber(biggestGoal.target_value) ? (toNumber(biggestGoal.current_value) / toNumber(biggestGoal.target_value)) * 100 : 0)}% progress.` : "No goal achievement is available yet.",
+    mostNeglectedGoal: neglectedGoal ? `${neglectedGoal.title} needs the most attention next week.` : "No neglected goal stands out yet.",
     biggestWin: winCandidates[0] || "You kept the system updated enough to generate a weekly review.",
     biggestConcern: concernCandidates[0] || "No major concern stands out from this week.",
     topPriorities: Array.from(new Set(priorities)).slice(0, 3)
@@ -174,7 +188,7 @@ export async function GET(request: NextRequest) {
   const weekStart = dateKey(start);
   const weekEnd = dateKey(end);
 
-  const [whoop, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, transactionsResult, financeGoalsResult] = await Promise.all([
+  const [whoop, habitsResult, completionsResult, goalsResult, tasksResult, accountsResult, transactionsResult, financeGoalsResult, longGoalsResult] = await Promise.all([
     getWhoopWeeklyMetrics(user.id),
     supabase.from("habits").select("id, title").eq("user_id", user.id),
     supabase.from("habit_completions").select("habit_id, completed_at").eq("user_id", user.id).gte("completed_at", start.toISOString()).lte("completed_at", end.toISOString()),
@@ -182,10 +196,11 @@ export async function GET(request: NextRequest) {
     supabase.from("school_tasks").select("title, due_date, status, updated_at").eq("user_id", user.id).or(`status.neq.completed,updated_at.gte.${start.toISOString()}`).order("due_date", { ascending: true, nullsFirst: false }),
     supabase.from("finance_accounts").select("balance").eq("user_id", user.id),
     supabase.from("finance_transactions").select("amount, category, transaction_date").eq("user_id", user.id).gte("transaction_date", weekStart).lte("transaction_date", weekEnd),
-    supabase.from("finance_goals").select("title, target_amount, current_amount").eq("user_id", user.id)
+    supabase.from("finance_goals").select("title, target_amount, current_amount").eq("user_id", user.id),
+    supabase.from("goals").select("title, target_value, current_value, target_date, status, updated_at").eq("user_id", user.id)
   ]);
 
-  if (habitsResult.error || completionsResult.error || goalsResult.error || tasksResult.error || accountsResult.error || transactionsResult.error || financeGoalsResult.error) {
+  if (habitsResult.error || completionsResult.error || goalsResult.error || tasksResult.error || accountsResult.error || transactionsResult.error || financeGoalsResult.error || longGoalsResult.error) {
     return NextResponse.json({ ok: false, error: "request_failed" }, { status: 500 });
   }
 
@@ -201,7 +216,10 @@ export async function GET(request: NextRequest) {
       tasks: tasksResult.data ?? [],
       accounts: accountsResult.data ?? [],
       transactions: transactionsResult.data ?? [],
-      financeGoals: financeGoalsResult.data ?? []
+      financeGoals: financeGoalsResult.data ?? [],
+      longGoals: longGoalsResult.data ?? []
     })
   });
 }
+
+
