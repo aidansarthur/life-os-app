@@ -1,62 +1,42 @@
-﻿"use client";
-
-import { ReportCard } from "@/components/ReportCard";
+﻿import Link from "next/link";
+import { CalendarDays, ChevronRight, ListChecks } from "lucide-react";
 import { SectionHeader } from "@/components/SectionHeader";
-import { useFinance } from "@/components/useFinance";
-import { useHabits } from "@/components/useHabits";
-import { useSchool } from "@/components/useSchool";
-import { today, whoopMetrics } from "@/lib/mock-data";
-import { generateDailyReport } from "@/lib/report";
+
+const reports = [
+  {
+    href: "/reports/daily",
+    title: "Daily Report",
+    description: "Today summary, top priorities, health, productivity, and finance guidance.",
+    icon: ListChecks
+  },
+  {
+    href: "/reports/weekly",
+    title: "Weekly Report",
+    description: "Seven-day review across WHOOP, habits, school, and finances.",
+    icon: CalendarDays
+  }
+];
 
 export default function ReportsPage() {
-  const { habits, status: habitsStatus } = useHabits();
-  const { goals, status: schoolStatus } = useSchool();
-  const { transactions, status: financeStatus } = useFinance();
-  const report = generateDailyReport({
-    metrics: whoopMetrics,
-    habits: habits.map((habit) => ({
-      id: habit.id,
-      name: habit.title,
-      target: habit.description ?? habit.targetFrequency,
-      completions: habit.completionDates,
-      streak: habit.streak
-    })),
-    goals: goals.map((goal) => ({
-      id: goal.id,
-      className: goal.title,
-      target: goal.description ?? goal.category,
-      priority: goal.priority,
-      progress: goal.progress,
-      tasks: goal.tasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        dueDate: task.dueDate ?? "",
-        done: task.status === "completed"
-      }))
-    })),
-    transactions: transactions.map((transaction) => ({
-      id: transaction.id,
-      date: transaction.transactionDate,
-      type: transaction.amount > 0 ? "Income" : transaction.category === "Savings" ? "Savings" : "Expense",
-      category: transaction.category,
-      amount: Math.abs(transaction.amount),
-      note: transaction.description
-    })),
-    date: today
-  });
-
   return (
     <>
-      <SectionHeader eyebrow="Daily report" title="Reflection for today" />
-      <div className="grid gap-4">
-        <ReportCard title="Health and sleep" body={report.health} />
-        <ReportCard title="Habits" body={habitsStatus === "loading" ? "Loading today's habit data." : report.habits} />
-        <ReportCard title="School goals" body={schoolStatus === "loading" ? "Loading school goals." : report.school} />
-        <ReportCard title="Finances" body={financeStatus === "loading" ? "Loading finance data." : report.finances} />
-        <section className="rounded-lg border border-moss/20 bg-mint p-5">
-          <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-moss">Recommendation for tomorrow</h2>
-          <p className="leading-7 text-ink/75">{habitsStatus === "loading" || schoolStatus === "loading" || financeStatus === "loading" ? "Loading your check-in now." : report.recommendation}</p>
-        </section>
+      <SectionHeader eyebrow="Reports" title="Daily and weekly reviews" />
+      <div className="grid gap-4 md:grid-cols-2">
+        {reports.map((report) => {
+          const Icon = report.icon;
+          return (
+            <Link key={report.href} href={report.href} className="focus-ring group rounded-lg border border-ink/10 bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-moss/30">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="grid size-10 place-items-center rounded-md bg-mint text-moss">
+                  <Icon className="size-5" />
+                </div>
+                <ChevronRight className="size-5 text-ink/35 transition group-hover:text-moss" />
+              </div>
+              <h2 className="text-lg font-bold text-ink">{report.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-ink/60">{report.description}</p>
+            </Link>
+          );
+        })}
       </div>
     </>
   );
