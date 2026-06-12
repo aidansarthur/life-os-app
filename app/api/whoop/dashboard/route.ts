@@ -1,19 +1,11 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
-import { getWhoopTokens } from "@/lib/whoop-token-store";
+import { fetchWhoopJson, WhoopApiError } from "@/lib/whoop-api";
 import type { WhoopRecoveryTrendPoint } from "@/lib/whoop-dashboard-types";
-
-const WHOOP_API_BASE = "https://api.prod.whoop.com/developer/v2";
 
 type WhoopRecordResponse = {
   records?: unknown[];
 };
-
-class WhoopRequestError extends Error {
-  constructor(readonly status: number) {
-    super(`WHOOP request failed with status ${status}`);
-  }
-}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -77,32 +69,10 @@ function recoveryTrendFrom(response: WhoopRecordResponse): WhoopRecoveryTrendPoi
     .map((record, index) => {
       const recoveryScore = getNestedNumber(record, ["score", "recovery_score"]);
       if (recoveryScore === null) return null;
-      return {
-        date: labelFromRecord(record, index),
-        recoveryScore
-      };
+      return { date: labelFromRecord(record, index), recoveryScore };
     })
     .filter((point): point is WhoopRecoveryTrendPoint => point !== null)
     .reverse();
-}
-
-async function fetchWhoopCollection(path: string, authorization: string, limit: string) {
-  const url = new URL(`${WHOOP_API_BASE}${path}`);
-  url.searchParams.set("limit", limit);
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: authorization,
-      Accept: "application/json"
-    },
-    cache: "no-store"
-  });
-
-  if (!response.ok) {
-    throw new WhoopRequestError(response.status);
-  }
-
-  return (await response.json()) as WhoopRecordResponse;
 }
 
 export async function GET(request: NextRequest) {
@@ -111,20 +81,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "not_connected" }, { status: 401 });
   }
 
-  const tokens = await getWhoopTokens(user.id);
-
-  if (!tokens?.accessToken) {
-    return NextResponse.json({ ok: false, error: "not_connected" });
-  }
-
-  const authorization = `${tokens.tokenType} ${tokens.accessToken}`;
-
   try {
-    const [recoveryResponse, sleepResponse] = await Promise.all([
-      fetchWhoopCollection("/recovery", authorization, "7"),
-      fetchWhoopCollection("/activity/sleep", authorization, "1")
-    ]);
-
+    const recoveryResponse = await fetchWhoopJson<WhoopRecordResponse>(user.id, "/recovery", { searchParams: { limit: "7" } });
+    const sleepResponse = await fetchWhoopJson<WhoopRecordResponse>(user.id, "/activity/sleep", { searchParams: { limit: "1" } });
     const recovery = latestRecord(recoveryResponse);
     const sleep = latestRecord(sleepResponse);
 
@@ -141,7 +100,11 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    if (error instanceof WhoopRequestError && error.status === 401) {
+    if (error instanceof WhoopApiError && error.code === "not_connected") {
+      return NextResponse.json({ ok: false, error: "not_connected" });
+    }
+
+    if (error instanceof WhoopApiError && error.status === 401) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

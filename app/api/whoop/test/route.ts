@@ -1,8 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
-import { getWhoopTokens } from "@/lib/whoop-token-store";
-
-const WHOOP_PROFILE_URL = "https://api.prod.whoop.com/developer/v2/user/profile/basic";
+import { fetchWhoopJson, WhoopApiError } from "@/lib/whoop-api";
 
 export async function GET(request: NextRequest) {
   const user = await getUserFromRequest(request);
@@ -10,34 +8,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "not_connected" }, { status: 401 });
   }
 
-  const tokens = await getWhoopTokens(user.id);
-
-  if (!tokens?.accessToken) {
-    return NextResponse.json({ ok: false, error: "not_connected" });
-  }
-
   try {
-    const profileResponse = await fetch(WHOOP_PROFILE_URL, {
-      headers: {
-        Authorization: `${tokens.tokenType} ${tokens.accessToken}`,
-        Accept: "application/json"
-      }
-    });
+    const profile = await fetchWhoopJson(user.id, "/user/profile/basic");
+    return NextResponse.json({ ok: true, profile });
+  } catch (error) {
+    if (error instanceof WhoopApiError && error.code === "not_connected") {
+      return NextResponse.json({ ok: false, error: "not_connected" });
+    }
 
-    if (profileResponse.status === 401) {
+    if (error instanceof WhoopApiError && error.status === 401) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 
-    if (!profileResponse.ok) {
-      return NextResponse.json({ ok: false, error: "whoop_request_failed" }, { status: 502 });
-    }
-
-    const profile = await profileResponse.json();
-
-    return NextResponse.json({ ok: true, profile });
-  } catch {
     return NextResponse.json({ ok: false, error: "whoop_request_failed" }, { status: 502 });
   }
 }
-
-

@@ -1,10 +1,9 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getWhoopTokens } from "@/lib/whoop-token-store";
+import { fetchWhoopJson } from "@/lib/whoop-api";
 import type { DailyReport } from "@/lib/daily-report-types";
 
-const WHOOP_API_BASE = "https://api.prod.whoop.com/developer/v2";
 
 type HabitRow = { id: string; title: string };
 type CompletionRow = { habit_id: string; completed_at: string };
@@ -21,12 +20,6 @@ type WhoopMetrics = {
 };
 
 type WhoopRecordResponse = { records?: unknown[] };
-
-class WhoopRequestError extends Error {
-  constructor(readonly status: number) {
-    super(`WHOOP request failed with status ${status}`);
-  }
-}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -72,31 +65,10 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-async function fetchWhoopCollection(path: string, authorization: string, limit: string) {
-  const url = new URL(`${WHOOP_API_BASE}${path}`);
-  url.searchParams.set("limit", limit);
-
-  const response = await fetch(url, {
-    headers: { Authorization: authorization, Accept: "application/json" },
-    cache: "no-store"
-  });
-
-  if (!response.ok) throw new WhoopRequestError(response.status);
-  return (await response.json()) as WhoopRecordResponse;
-}
-
 async function getWhoopMetrics(userId: string): Promise<WhoopMetrics> {
-  const tokens = await getWhoopTokens(userId);
-  if (!tokens?.accessToken) {
-    return { recoveryScore: null, hrv: null, sleepHours: null, restingHeartRate: null };
-  }
-
   try {
-    const authorization = `${tokens.tokenType} ${tokens.accessToken}`;
-    const [recoveryResponse, sleepResponse] = await Promise.all([
-      fetchWhoopCollection("/recovery", authorization, "1"),
-      fetchWhoopCollection("/activity/sleep", authorization, "1")
-    ]);
+    const recoveryResponse = await fetchWhoopJson<WhoopRecordResponse>(userId, "/recovery", { searchParams: { limit: "1" } });
+    const sleepResponse = await fetchWhoopJson<WhoopRecordResponse>(userId, "/activity/sleep", { searchParams: { limit: "1" } });
     const recovery = latestRecord(recoveryResponse);
     const sleep = latestRecord(sleepResponse);
 
@@ -222,3 +194,6 @@ export async function GET(request: NextRequest) {
     })
   });
 }
+
+
+
