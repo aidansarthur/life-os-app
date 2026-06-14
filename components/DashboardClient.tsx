@@ -1,5 +1,6 @@
-﻿"use client";
+"use client";
 
+import Link from "next/link";
 import { BookOpen, CalendarCheck, CalendarDays, Flag, HeartPulse, PiggyBank, Target } from "lucide-react";
 import { DailyReportDashboardCard } from "@/components/DailyReportDashboardCard";
 import { MiniBarChart } from "@/components/MiniBarChart";
@@ -49,6 +50,10 @@ function sleepRecoveryCard(state: WhoopDashboardState) {
     return { value: "Connect", detail: "Connect WHOOP for recovery and sleep" };
   }
 
+  if (state.error === "refresh_failed") {
+    return { value: "Reconnect", detail: "Your WHOOP session expired" };
+  }
+
   return { value: "--", detail: "Unable to load WHOOP data" };
 }
 
@@ -59,6 +64,7 @@ function healthSnapshot(state: WhoopDashboardState) {
 
   if (state.status === "loading") return "WHOOP: loading recovery and sleep data.";
   if (state.status === "not_connected") return "WHOOP: connect your account to show live recovery, sleep, HRV, resting heart rate, and sleep efficiency.";
+  if (state.error === "refresh_failed") return "WHOOP: your session expired. Reconnect WHOOP to restore live recovery, sleep, HRV, resting heart rate, and sleep efficiency.";
   return "WHOOP: unable to load recovery and sleep data right now.";
 }
 
@@ -71,7 +77,9 @@ function recoveryTrendPanel({ state }: { state: WhoopDashboardState }) {
     ? "Loading WHOOP recovery trend..."
     : state.status === "not_connected"
       ? "Connect WHOOP to show your real recovery trend."
-      : "Unable to load WHOOP recovery trend.";
+      : state.status === "error" && state.error === "refresh_failed"
+        ? "Your WHOOP session expired. Reconnect WHOOP to show your recovery trend."
+        : "Unable to load WHOOP recovery trend.";
 
   return (
     <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
@@ -132,6 +140,13 @@ export function DashboardClient() {
         <StatCard label="Monthly balance" value={financeStatus === "loading" ? "Loading" : formatMoney(finance.monthlyBalance)} detail={financeStatus === "loading" ? "Loading finance data" : `${formatMoney(finance.monthlySavings)} saved this month`} icon={PiggyBank} tone="clay" />
       </div>
 
+      {whoopState.status === "error" && whoopState.error === "refresh_failed" ? (
+        <div className="mt-4 rounded-lg border border-clay/20 bg-clay/10 p-4 text-sm font-semibold text-clay">
+          <p>Your WHOOP session expired. Reconnect WHOOP.</p>
+          <Link href="/api/whoop/connect" className="focus-ring mt-3 inline-flex rounded-md bg-ink px-4 py-2 text-sm font-bold text-white">Reconnect WHOOP</Link>
+        </div>
+      ) : null}
+
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <StatCard label="Active goals" value={goalsStatus === "loading" ? "Loading" : String(activeGoals.length)} detail="Long-term goals in progress" icon={Target} tone="sky" />
         <StatCard label="Goal progress" value={goalsStatus === "loading" ? "Loading" : `${averageGoalProgress}%`} detail="Average active goal progress" icon={Flag} tone="gold" />
@@ -157,5 +172,8 @@ export function DashboardClient() {
     </>
   );
 }
+
+
+
 
 

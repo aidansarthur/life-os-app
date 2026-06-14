@@ -29,7 +29,7 @@ export default function HealthPage() {
 
       {whoop.status === "loading" ? <StatusCard message="Loading WHOOP data..." /> : null}
       {whoop.status === "not_connected" ? <StatusCard message="Connect WHOOP to show real recovery, sleep, HRV, resting heart rate, and strain data." /> : null}
-      {whoop.status === "error" ? <StatusCard message="Unable to load WHOOP data. Reconnect WHOOP if this keeps happening." tone="error" /> : null}
+      {whoop.status === "error" ? <StatusCard message={whoop.error === "refresh_failed" ? "Your WHOOP session expired. Reconnect WHOOP." : "Unable to load WHOOP data. Reconnect WHOOP if this keeps happening."} tone="error" actionLabel="Reconnect WHOOP" /> : null}
 
       {whoop.status === "connected" ? (
         <>
@@ -58,7 +58,14 @@ export default function HealthPage() {
   );
 }
 
-function StatusCard({ message, tone = "default" }: { message: string; tone?: "default" | "error" }) {
-  return <section className={`rounded-lg border p-5 text-sm font-semibold shadow-soft ${tone === "error" ? "border-clay/20 bg-clay/10 text-clay" : "border-ink/10 bg-white text-ink/60"}`}>{message}</section>;
+function StatusCard({ message, tone = "default", actionLabel }: { message: string; tone?: "default" | "error"; actionLabel?: string }) {
+  return (
+    <section className={`rounded-lg border p-5 text-sm font-semibold shadow-soft ${tone === "error" ? "border-clay/20 bg-clay/10 text-clay" : "border-ink/10 bg-white text-ink/60"}`}>
+      <p>{message}</p>
+      {actionLabel ? <a href="/api/whoop/connect" className="focus-ring mt-4 inline-flex rounded-md bg-ink px-4 py-2 text-sm font-bold text-white">{actionLabel}</a> : null}
+    </section>
+  );
 }
+
+
 

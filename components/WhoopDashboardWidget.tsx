@@ -39,29 +39,24 @@ function WidgetShell({ children }: { children: React.ReactNode }) {
 
 export function WhoopDashboardWidget({ state }: { state: WhoopDashboardState }) {
   if (state.status === "loading") {
-    return (
-      <WidgetShell>
-        <p className="rounded-md bg-[#f7f8f4] p-3 text-sm font-semibold text-ink/60">Loading WHOOP data...</p>
-      </WidgetShell>
-    );
+    return <WidgetShell><p className="rounded-md bg-[#f7f8f4] p-3 text-sm font-semibold text-ink/60">Loading WHOOP data...</p></WidgetShell>;
   }
 
   if (state.status === "not_connected") {
     return (
       <WidgetShell>
         <p className="leading-7 text-ink/70">Connect WHOOP to bring live recovery and sleep metrics into your Life OS dashboard.</p>
-        <Link href="/api/whoop/connect" className="focus-ring mt-4 inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-bold text-white">
-          <Link2 className="size-4" />
-          Connect WHOOP
-        </Link>
+        <Link href="/api/whoop/connect" className="focus-ring mt-4 inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-bold text-white"><Link2 className="size-4" />Connect WHOOP</Link>
       </WidgetShell>
     );
   }
 
   if (state.status === "error") {
+    const reconnect = state.error === "refresh_failed";
     return (
       <WidgetShell>
-        <p className="rounded-md bg-clay/10 p-3 text-sm font-semibold text-clay">Unable to load WHOOP data</p>
+        <p className="rounded-md bg-clay/10 p-3 text-sm font-semibold text-clay">{reconnect ? "Your WHOOP session expired. Reconnect WHOOP." : "Unable to load WHOOP data"}</p>
+        {reconnect ? <Link href="/api/whoop/connect" className="focus-ring mt-4 inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-bold text-white"><Link2 className="size-4" />Reconnect WHOOP</Link> : null}
       </WidgetShell>
     );
   }
@@ -69,10 +64,7 @@ export function WhoopDashboardWidget({ state }: { state: WhoopDashboardState }) 
   return (
     <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <HeartPulse className="size-5 text-moss" />
-          <h2 className="text-lg font-bold">WHOOP</h2>
-        </div>
+        <div className="flex items-center gap-3"><HeartPulse className="size-5 text-moss" /><h2 className="text-lg font-bold">WHOOP</h2></div>
         <span className="rounded-md bg-mint px-2.5 py-1 text-xs font-bold text-moss">Connected</span>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

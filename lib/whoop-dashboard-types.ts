@@ -23,6 +23,7 @@ export type WhoopDashboardResponse =
 export type WhoopDashboardState =
   | { status: "loading" }
   | { status: "not_connected" }
-  | { status: "error" }
+  | { status: "error"; error?: "unauthorized" | "refresh_failed" | "whoop_request_failed" }
   | { status: "connected"; metrics: WhoopDashboardData };
+
 

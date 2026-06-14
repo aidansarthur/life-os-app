@@ -21,11 +21,11 @@ export function useWhoopDashboard() {
         } else if (body.error === "not_connected") {
           setState({ status: "not_connected" });
         } else {
-          setState({ status: "error" });
+          setState({ status: "error", error: body.error });
         }
       } catch {
         if (isMounted) {
-          setState({ status: "error" });
+          setState({ status: "error", error: "whoop_request_failed" });
         }
       }
     }
@@ -39,4 +39,3 @@ export function useWhoopDashboard() {
 
   return state;
 }
-
