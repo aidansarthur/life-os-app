@@ -20,9 +20,11 @@ type WhoopTokenRow = {
 const tokenStore = new Map<string, WhoopTokenRecord>();
 
 function saveMemoryFallback(ownerId: string, tokens: WhoopTokenRecord) {
-  // TODO: Remove this fallback once Supabase auth and durable token storage are required.
-  // Serverless deployments may clear this Map between invocations.
   tokenStore.set(ownerId, tokens);
+}
+
+export function isSupabaseTokenStoreConfigured() {
+  return Boolean(getSupabaseAdminClient());
 }
 
 export async function saveWhoopTokens(ownerId: string, tokens: WhoopTokenRecord) {
@@ -63,10 +65,10 @@ export async function getWhoopTokens(ownerId: string) {
     .maybeSingle<WhoopTokenRow>();
 
   if (error || !data) {
-    return memoryTokens;
+    return null;
   }
 
-  return {
+  const tokens = {
     accessToken: data.access_token,
     refreshToken: data.refresh_token ?? undefined,
     expiresIn: Math.max(0, Math.floor((new Date(data.expires_at).getTime() - Date.now()) / 1000)),
@@ -74,4 +76,7 @@ export async function getWhoopTokens(ownerId: string) {
     tokenType: data.token_type,
     savedAt: data.updated_at
   } satisfies WhoopTokenRecord;
+
+  saveMemoryFallback(ownerId, tokens);
+  return tokens;
 }

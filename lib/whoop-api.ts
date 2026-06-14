@@ -1,10 +1,11 @@
-﻿import { saveWhoopTokens, getWhoopTokens, type WhoopTokenRecord } from "@/lib/whoop-token-store";
+﻿import { getWhoopTokens, isSupabaseTokenStoreConfigured, saveWhoopTokens, type WhoopTokenRecord } from "@/lib/whoop-token-store";
 
 const WHOOP_API_BASE = "https://api.prod.whoop.com/developer/v2";
 const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
+const REFRESH_EARLY_SECONDS = 300;
 
 export class WhoopApiError extends Error {
-  constructor(readonly status: number, readonly code: "not_connected" | "unauthorized" | "whoop_request_failed") {
+  constructor(readonly status: number, readonly code: "not_connected" | "unauthorized" | "refresh_failed" | "whoop_request_failed") {
     super(code);
   }
 }
@@ -19,6 +20,8 @@ type WhoopTokenResponse = {
 type FetchWhoopOptions = {
   searchParams?: Record<string, string>;
 };
+
+const refreshLocks = new Map<string, Promise<WhoopTokenRecord>>();
 
 function authorization(tokens: WhoopTokenRecord) {
   return `${tokens.tokenType} ${tokens.accessToken}`;
@@ -37,7 +40,7 @@ async function refreshWhoopTokens(ownerId: string, tokens: WhoopTokenRecord) {
   const clientSecret = process.env.WHOOP_CLIENT_SECRET;
 
   if (!clientId || !clientSecret || !tokens.refreshToken) {
-    throw new WhoopApiError(401, "unauthorized");
+    throw new WhoopApiError(401, "refresh_failed");
   }
 
   const response = await fetch(WHOOP_TOKEN_URL, {
@@ -56,13 +59,13 @@ async function refreshWhoopTokens(ownerId: string, tokens: WhoopTokenRecord) {
   });
 
   if (!response.ok) {
-    throw new WhoopApiError(401, "unauthorized");
+    throw new WhoopApiError(401, "refresh_failed");
   }
 
   const refreshed = (await response.json()) as WhoopTokenResponse;
 
   if (!refreshed.access_token || !refreshed.expires_in || !refreshed.token_type) {
-    throw new WhoopApiError(401, "unauthorized");
+    throw new WhoopApiError(401, "refresh_failed");
   }
 
   const nextTokens: WhoopTokenRecord = {
@@ -74,8 +77,45 @@ async function refreshWhoopTokens(ownerId: string, tokens: WhoopTokenRecord) {
     savedAt: new Date().toISOString()
   };
 
-  await saveWhoopTokens(ownerId, nextTokens);
+  const saveResult = await saveWhoopTokens(ownerId, nextTokens);
+  if (isSupabaseTokenStoreConfigured() && !saveResult.persisted) {
+    throw new WhoopApiError(500, "refresh_failed");
+  }
+
   return nextTokens;
+}
+
+async function refreshWithLock(ownerId: string, staleTokens: WhoopTokenRecord) {
+  const existing = refreshLocks.get(ownerId);
+  if (existing) return existing;
+
+  const refreshPromise = (async () => {
+    const latest = await getWhoopTokens(ownerId);
+    if (latest && latest.accessToken !== staleTokens.accessToken && latest.expiresIn > REFRESH_EARLY_SECONDS) {
+      return latest;
+    }
+    return refreshWhoopTokens(ownerId, latest ?? staleTokens);
+  })();
+
+  refreshLocks.set(ownerId, refreshPromise);
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshLocks.delete(ownerId);
+  }
+}
+
+async function getUsableTokens(ownerId: string) {
+  const tokens = await getWhoopTokens(ownerId);
+  if (!tokens?.accessToken) {
+    throw new WhoopApiError(401, "not_connected");
+  }
+
+  if (tokens.expiresIn <= REFRESH_EARLY_SECONDS) {
+    return refreshWithLock(ownerId, tokens);
+  }
+
+  return tokens;
 }
 
 async function requestJson<T>(path: string, tokens: WhoopTokenRecord, options?: FetchWhoopOptions) {
@@ -99,10 +139,7 @@ async function requestJson<T>(path: string, tokens: WhoopTokenRecord, options?: 
 }
 
 export async function fetchWhoopJson<T>(ownerId: string, path: string, options?: FetchWhoopOptions) {
-  const tokens = await getWhoopTokens(ownerId);
-  if (!tokens?.accessToken) {
-    throw new WhoopApiError(401, "not_connected");
-  }
+  const tokens = await getUsableTokens(ownerId);
 
   try {
     return await requestJson<T>(path, tokens, options);
@@ -111,7 +148,7 @@ export async function fetchWhoopJson<T>(ownerId: string, path: string, options?:
       throw error;
     }
 
-    const refreshedTokens = await refreshWhoopTokens(ownerId, tokens);
+    const refreshedTokens = await refreshWithLock(ownerId, tokens);
     return requestJson<T>(path, refreshedTokens, options);
   }
 }

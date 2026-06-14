@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "not_connected" });
     }
 
+    if (error instanceof WhoopApiError && error.code === "refresh_failed") {
+      return NextResponse.json({ ok: false, error: "refresh_failed" }, { status: 401 });
+    }
+
     if (error instanceof WhoopApiError && error.status === 401) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
@@ -29,3 +33,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "whoop_request_failed" }, { status: 502 });
   }
 }
+

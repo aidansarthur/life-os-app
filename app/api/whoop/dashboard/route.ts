@@ -64,6 +64,16 @@ function labelFromRecord(record: unknown, index: number) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function sleepTrendFrom(response: WhoopRecordResponse) {
+  return (response.records ?? [])
+    .map((record, index) => ({
+      date: labelFromRecord(record, index),
+      hoursSlept: sleepHoursFrom(record),
+      sleepPerformance: getNestedNumber(record, ["score", "sleep_performance_percentage"])
+    }))
+    .reverse();
+}
+
 function recoveryTrendFrom(response: WhoopRecordResponse): WhoopRecoveryTrendPoint[] {
   return (response.records ?? [])
     .map((record, index) => {
@@ -83,9 +93,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const recoveryResponse = await fetchWhoopJson<WhoopRecordResponse>(user.id, "/recovery", { searchParams: { limit: "7" } });
-    const sleepResponse = await fetchWhoopJson<WhoopRecordResponse>(user.id, "/activity/sleep", { searchParams: { limit: "1" } });
+    const sleepResponse = await fetchWhoopJson<WhoopRecordResponse>(user.id, "/activity/sleep", { searchParams: { limit: "7" } });
+    const cycleResponse = await fetchWhoopJson<WhoopRecordResponse>(user.id, "/cycle", { searchParams: { limit: "1" } }).catch(() => ({ records: [] }));
     const recovery = latestRecord(recoveryResponse);
     const sleep = latestRecord(sleepResponse);
+    const cycle = latestRecord(cycleResponse);
 
     return NextResponse.json({
       ok: true,
@@ -96,12 +108,19 @@ export async function GET(request: NextRequest) {
         sleepPerformance: getNestedNumber(sleep, ["score", "sleep_performance_percentage"]),
         hoursSlept: sleepHoursFrom(sleep),
         sleepEfficiency: getNestedNumber(sleep, ["score", "sleep_efficiency_percentage"]),
-        recoveryTrend: recoveryTrendFrom(recoveryResponse)
+        recoveryTrend: recoveryTrendFrom(recoveryResponse),
+        sleepTrend: sleepTrendFrom(sleepResponse),
+        strain: getNestedNumber(cycle, ["score", "strain"]),
+        cycleStrain: getNestedNumber(cycle, ["score", "strain"])
       }
     });
   } catch (error) {
     if (error instanceof WhoopApiError && error.code === "not_connected") {
       return NextResponse.json({ ok: false, error: "not_connected" });
+    }
+
+    if (error instanceof WhoopApiError && error.code === "refresh_failed") {
+      return NextResponse.json({ ok: false, error: "refresh_failed" }, { status: 401 });
     }
 
     if (error instanceof WhoopApiError && error.status === 401) {
@@ -111,4 +130,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "whoop_request_failed" }, { status: 502 });
   }
 }
+
+
+
+
 

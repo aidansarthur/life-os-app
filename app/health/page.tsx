@@ -1,29 +1,64 @@
+﻿"use client";
+
 import { Activity, HeartPulse, Moon, Timer, Waves } from "lucide-react";
 import { MiniBarChart } from "@/components/MiniBarChart";
 import { SectionHeader } from "@/components/SectionHeader";
 import { StatCard } from "@/components/StatCard";
-import { latestMetric } from "@/lib/calculations";
-import { whoopMetrics } from "@/lib/mock-data";
+import { useWhoopDashboard } from "@/components/useWhoopDashboard";
+
+function percent(value: number | null) {
+  return value === null ? "--" : `${Math.round(value)}%`;
+}
+
+function hours(value: number | null) {
+  return value === null ? "--" : `${value.toFixed(1)}h`;
+}
+
+function numberLabel(value: number | null, suffix = "") {
+  return value === null ? "--" : `${Math.round(value)}${suffix}`;
+}
 
 export default function HealthPage() {
-  const metric = latestMetric(whoopMetrics);
+  const whoop = useWhoopDashboard();
 
   return (
     <>
-      <SectionHeader eyebrow="Health / WHOOP" title="Recovery and sleep trends" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Sleep duration" value={`${metric.sleepHours}h`} detail="Mock WHOOP sleep" icon={Moon} />
-        <StatCard label="Recovery" value={`${metric.recoveryScore}%`} detail="Placeholder score" icon={HeartPulse} tone="sky" />
-        <StatCard label="HRV" value={`${metric.hrv} ms`} detail="Mock daily average" icon={Waves} tone="gold" />
-        <StatCard label="Resting HR" value={`${metric.restingHeartRate}`} detail="Beats per minute" icon={Timer} tone="clay" />
-        <StatCard label="Strain" value={`${metric.strain}`} detail="Daily training load" icon={Activity} />
-      </div>
-      <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        <MiniBarChart data={whoopMetrics} valueKey="sleepHours" label="Sleep duration by day" max={10} />
-        <MiniBarChart data={whoopMetrics} valueKey="strain" label="Strain by day" max={21} />
-        <MiniBarChart data={whoopMetrics} valueKey="hrv" label="HRV trend" />
-        <MiniBarChart data={whoopMetrics} valueKey="restingHeartRate" label="Resting heart rate" max={90} />
-      </div>
+      <SectionHeader eyebrow="Health / WHOOP" title="Recovery and sleep trends">
+        {whoop.status === "not_connected" ? <a href="/api/whoop/connect" className="focus-ring rounded-md bg-ink px-4 py-2 text-sm font-bold text-white">Connect WHOOP</a> : null}
+      </SectionHeader>
+
+      {whoop.status === "loading" ? <StatusCard message="Loading WHOOP data..." /> : null}
+      {whoop.status === "not_connected" ? <StatusCard message="Connect WHOOP to show real recovery, sleep, HRV, resting heart rate, and strain data." /> : null}
+      {whoop.status === "error" ? <StatusCard message="Unable to load WHOOP data. Reconnect WHOOP if this keeps happening." tone="error" /> : null}
+
+      {whoop.status === "connected" ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <StatCard label="Recovery" value={percent(whoop.metrics.recoveryScore)} detail="WHOOP recovery" icon={HeartPulse} tone="sky" />
+            <StatCard label="HRV" value={numberLabel(whoop.metrics.hrv, " ms")} detail="RMSSD" icon={Waves} tone="gold" />
+            <StatCard label="Resting HR" value={numberLabel(whoop.metrics.restingHeartRate)} detail="Beats per minute" icon={Timer} tone="clay" />
+            <StatCard label="Sleep duration" value={hours(whoop.metrics.hoursSlept)} detail="Last sleep" icon={Moon} />
+            <StatCard label="Sleep performance" value={percent(whoop.metrics.sleepPerformance)} detail="WHOOP sleep score" icon={Moon} tone="sky" />
+            <StatCard label="Strain" value={numberLabel(whoop.metrics.strain)} detail="Cycle strain" icon={Activity} />
+          </div>
+
+          <div className="mt-6 grid gap-4 xl:grid-cols-2">
+            <MiniBarChart data={whoop.metrics.recoveryTrend} valueKey="recoveryScore" label="Recovery trend" max={100} />
+            <MiniBarChart data={whoop.metrics.sleepTrend.map((point) => ({ date: point.date, hoursSlept: point.hoursSlept ?? 0 }))} valueKey="hoursSlept" label="Sleep duration trend" max={10} />
+            <MiniBarChart data={whoop.metrics.sleepTrend.map((point) => ({ date: point.date, sleepPerformance: point.sleepPerformance ?? 0 }))} valueKey="sleepPerformance" label="Sleep performance trend" max={100} />
+            <section className="rounded-lg border border-ink/10 bg-white p-5 shadow-soft">
+              <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-moss">WHOOP status</h2>
+              <p className="leading-7 text-ink/75">Real WHOOP data is connected. Tokens refresh automatically before expiry and once after a WHOOP 401 response.</p>
+              <p className="mt-3 text-sm font-semibold text-ink/55">Sleep efficiency: {percent(whoop.metrics.sleepEfficiency)}. Cycle strain: {numberLabel(whoop.metrics.cycleStrain)}.</p>
+            </section>
+          </div>
+        </>
+      ) : null}
     </>
   );
 }
+
+function StatusCard({ message, tone = "default" }: { message: string; tone?: "default" | "error" }) {
+  return <section className={`rounded-lg border p-5 text-sm font-semibold shadow-soft ${tone === "error" ? "border-clay/20 bg-clay/10 text-clay" : "border-ink/10 bg-white text-ink/60"}`}>{message}</section>;
+}
+
