@@ -1,7 +1,7 @@
 ﻿import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_ACCESS_COOKIE, getUserFromRequest } from "@/lib/auth";
 
-const protectedPaths = ["/", "/health", "/habits", "/school", "/finances", "/goals", "/calendar", "/reports", "/settings"];
+const protectedPaths = ["/", "/health", "/habits", "/school", "/finances", "/goals", "/calendar", "/reports", "/coach", "/settings"];
 
 function isProtectedPath(pathname: string) {
   return protectedPaths.some((path) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`)));
@@ -42,5 +42,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!.*\\..*).*)"]
 };
+
 
 
